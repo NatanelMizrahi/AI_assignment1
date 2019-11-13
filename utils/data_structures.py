@@ -2,7 +2,7 @@ import os
 import heapq
 import networkx as nx
 import matplotlib.pyplot as plt
-from heapq import _siftup, _siftdown
+from heapq import _siftdown
 from typing import List, Dict, Tuple
 
 
@@ -25,7 +25,7 @@ class Pair:
 
 
 class Heap:
-    def __init__(self, elements: List[Pair]):
+    def __init__(self, elements: List[Pair]=[]):
         heapq.heapify(elements)
         self.heap = elements
         self.set = set([e.v for e in elements])
@@ -52,14 +52,13 @@ class Heap:
     def siftdown(self, pos):
         _siftdown(self.heap, 0, pos)
 
-    def update_element(self, old, new):
+    def decrease_key(self, old, new):
         i = self.heap.index(old)
         self.heap[i] = new
-        if old > new:     # value is increased
-            _siftup(self.heap, i)
-        elif old < new:   # value is decreased
-            _siftdown(self.heap, 0, i)
+        _siftdown(self.heap, 0, i)
 
+    def __str__(self):
+        return str([str(e) for e in self.set])
 
 class Stack:
     def __init__(self):
@@ -114,12 +113,16 @@ class Edge:
         self.v1 = v1
         self.v2 = v2
         self.w = w
+        self.blocked = False
 
     def get(self):
         return (self.v1, self.v2, self.w)
 
     def reverse(self):
         return Edge(self.v2, self.v1, self.w, self.name + '_')
+
+    def is_blocked(self):
+        return self.blocked
 
     def __eq__(self, other):
         return self.v1 == other.v1 and self.v2 == other.v2
@@ -130,8 +133,10 @@ class Edge:
     def __hash__(self):
         return hash((self.v1, self.v2))
 
+
 class Graph:
-    def __init__(self, V:List[Node]=[],E:List[Edge]=[]):
+    """Graph with blockable edges"""
+    def __init__(self, V: List[Node]=[],E: List[Edge]=[]):
         self.pos = None # to maintain vertex position in visualization
         self.n_vertices = 0
         self.V:   Dict[Node, List[Node]]     = {}
@@ -156,13 +161,13 @@ class Graph:
             raise Exception("{} or {} are not in V".format(v1,v2))
         if self.Adj.get((v1,v2)):
             raise Exception("({},{}) already exists in E".format(v1,v2))
-
         self.V[v1].add(v2)
         self.V[v2].add(v1)
         self.Adj[v1,v2] = e
         self.Adj[v2,v1] = e.reverse()
 
     def remove_edge(self, v1, v2):
+        print('someone removed an edge')
         if (not v1 in self.V) or (not v2 in self.V):
             raise Exception("{} or {} are not in V".format(v1,v2))
         if not self.Adj.get((v1,v2)):
@@ -172,6 +177,14 @@ class Graph:
         del self.Adj[v1,v2]
         del self.Adj[v2,v1]
 
+    def block_edge(self, v1, v2):
+        if (not v1 in self.V) or (not v2 in self.V):
+            raise Exception("{} or {} are not in V".format(v1, v2))
+        if not self.Adj.get((v1, v2)):
+            print("({},{}) not in E".format(v1, v2))
+        self.Adj[v1, v2].blocked = True
+        self.Adj[v2, v1].blocked = True
+
     def remove_vertex(self, v):
         if (not v in self.V):
             raise Exception("{} not in V".format(v))
@@ -179,14 +192,17 @@ class Graph:
             self.remove_edge(v,u)
         self.n_vertices -= 1
 
-    def neigbours(self, v):
-            return self.V[v]
+    def neighbours(self, v):
+            return [u for u in self.V[v] if not self.get_edge(u, v).is_blocked()]
 
     def get_vertices(self):
         return self.V.keys()
 
+    def get_edges(self):
+        return self.Adj.values()
+
     def get_edge(self, v1, v2):
-        return self.Adj[v1,v2]
+        return self.Adj.get((v1, v2))
 
     def print_adj(self):
         for u, ns in self.V.items():
@@ -197,7 +213,7 @@ class Graph:
         V = self.get_vertices()
         G = nx.Graph()
         G.add_nodes_from(V)
-        G.add_weighted_edges_from([e.get() for e in self.Adj.values()])
+        G.add_weighted_edges_from([e.get() for e in self.Adj.values() if not e.is_blocked()])
         edge_labels = nx.get_edge_attributes(G, 'weight')
         node_labels = {v: v.describe() for v in G.nodes()}
         if G.number_of_nodes() == 0:
@@ -216,12 +232,31 @@ class Graph:
 
     @staticmethod
     def shortest_path_successor(src, target):
+        """returns source node's successor in the shortest path to target. Must run dijkstra(src) before calling this function"""
         v = target
         while v.prev != src:
             v = v.prev
         return v
 
-    def dijkstra(self, s):
+    def get_shortest_path(self, src, target):
+        """finds the shortest path from source to target node in graph. Must run dijkstra(src) before calling this function"""
+        path = [target]
+        v = target
+        # len(shortest path) <= |V|- 1
+        for i in range(self.n_vertices):
+            if v == src:
+                return reversed(path)
+            v = v.prev
+            path.append(v)
+        raise Exception('path does not exist: {} -> {}'.format(src, target))
+
+    def print_shortest_paths(self, src):
+        """prints all the shortest paths from source node. Must run dijkstra(src) before calling this function"""
+        print("shortest paths from: " + src.label)
+        for v in self.get_vertices():
+            print(v.label + ': ' + '->'.join([v.label for v in self.get_shortest_path(src, v)]))
+
+    def dijkstra(self, s, debug=False):
         '''
         :param s: source vertex
         :return: at the end of this method, foreach v in V: v.d = dist from source and v.prev = previous in shortest path to source
@@ -236,11 +271,13 @@ class Graph:
         while not Q.is_empty():
             pair = Q.extract_min()
             u = pair.v
-            for v in self.neigbours(u):
+            if debug: self.display(str(Q) + '; u = ' + u.label)
+            for v in self.neighbours(u):
                 if v in Q.set:
-                    tmp = u.d + self.Adj[u,v].w # w(u,v)
-                    if tmp < v.d:
-                        Q.update_element(Pair(v.d,v), Pair(tmp,v))
-                        v.d = tmp
+                    if debug: self.display(str(Q) + '; u = ' + u.label + ', v = ' + v.label)
+                    val = u.d + self.Adj[u,v].w # w(u,v)
+                    if val < v.d:
+                        Q.decrease_key(Pair(v.d, v), Pair(val, v))
+                        v.d = val
                         v.prev = u
         #TODO: return dist, prev for each node
