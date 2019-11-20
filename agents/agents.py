@@ -1,46 +1,17 @@
-from environment import Environment, State, SimpleNode
-from utils.data_structures import Edge, Queue
+from environment import Environment, State, EvacuateNode, SearchTree
+from utils.data_structures import Edge, Stack
 from configurator import Configurator
 from random import choice as rand_choice
-from enum import Enum
-from typing import Dict, List
+from typing import Dict, List #TODO
+from action import Action, ActionType
+from copy import copy as shallow_copy
 
 def debug(s):
     if Configurator.debug: print(s)
 
-class ActionType(Enum):
-    NO_OP     = 0
-    GOTO      = 1
-    BLOCK     = 2
-    TERMINATE = 3
-
-
-class Action:
-    """Data structure for describing an agent's action"""
-    def __init__(self,
-                 agent,
-                 # optional arguments
-                 action_type: ActionType=None,
-                 description='',
-                 end_time=0,
-                 callback=None):
-        self.agent = agent
-        self.action_type = action_type
-        self.description = description
-        self.end_time = end_time
-        self.callback = callback
-
-    def execute(self):
-        if self.callback is not None:
-            self.callback()
-            print('[DONE]' + self.description)
-
-    def describe(self):
-        return self.description
-
 class Agent:
-    def __init__(self, name, start_loc: SimpleNode):
-        self.loc: SimpleNode = start_loc
+    def __init__(self, name, start_loc: EvacuateNode):
+        self.loc: EvacuateNode = start_loc
         self.actions_seq = []
         self.name = name
         self.n_saved = 0
@@ -48,10 +19,11 @@ class Agent:
         self.n_carrying = 0
         self.terminated = False
         self.time = 0
-        self.goto_str = '' # for debug
+        self.goto_str = '' # used for debug
         print("{}({}) created in {}".format(self.name, self.__class__.__name__, start_loc))
 
     def get_strategy(self):
+        """non-SearchAgent instances do not have a strategy. SearchAgent instances override this method"""
         pass
 
     def is_available(self, env: Environment):
@@ -63,16 +35,16 @@ class Agent:
     def get_score(self):
         return self.n_saved - self.penalty
 
-    def get_possible_steps(self, env: Environment, verbose=0):
+    def get_possible_steps(self, env: Environment, verbose=False):
         possible_steps = [v for v in env.G.neighbours(self.loc) if self.is_reachable(env, v)]
         if verbose:
             for i, v in enumerate(possible_steps):
                 print('{}. {} -> {}'.format(i, self.loc.label, v.summary()))
-            print('{}. TERMINATE'.format(len(possible_steps)))
+            print('{}. TERMINATE\n'.format(len(possible_steps)))
         return list(possible_steps)
 
-    def is_reachable(self, env: Environment, v: SimpleNode, verbose=False):
-        """returns True iff transit to node v can be finished within v's deadline and (u,v) is not blocked"""
+    def is_reachable(self, env: Environment, v: EvacuateNode, verbose=False):
+        """returns True iff transit to node v can be finished within v's deadline AND (u,v) is not blocked"""
         e = env.G.get_edge(self.loc, v)
         if e.is_blocked():
             if verbose:
@@ -88,10 +60,11 @@ class Agent:
     def goto_duration(self, env, v):
         return self.time + env.G.get_edge(self.loc, v).w
 
-    def goto2(self, env: Environment, v: SimpleNode):
+    def goto2(self, env: Environment, v: EvacuateNode): #TODO: refactor: rename
+        """Move agent, taking transit time into account"""
         self.register_goto_callback(env, v)
 
-    def goto(self, env: Environment, v: SimpleNode):
+    def goto(self, env: Environment, v: EvacuateNode):
         if not self.is_reachable(env, v, verbose=True):
             self.terminate(env)
             return
@@ -100,12 +73,22 @@ class Agent:
         v.agents.add(self)
         self.goto_str = ''
 
+    def local_goto(self, env: Environment, v: EvacuateNode): #TODO: fix/remove
+        """simulates a goto operation locally for an agent- without updating the environment's entire state"""
+        self.time = self.goto_duration(env, v)
+        self.loc = v
+        self.try_evacuate(env, v)
+
+    def local_terminate(self):
+        """simulates a terminate operation locally for an agent- without updating the environment's entire state"""
+        self.penalty = self.n_carrying + Configurator.base_penalty
+        self.terminated = True
+
     ## callback implementation
     def register_goto_callback(self, env: Environment, v):
         if not self.is_reachable(env, v, verbose=True):
             self.terminate(env)
             return
-
         def goto_node(): self.goto(env, v)
         end_time = self.goto_duration(env, v)
         goto_action = Action(
@@ -118,7 +101,14 @@ class Agent:
         self.goto_str = '->{}'.format(v)
         self.register_action(env, goto_action)
 
-    def try_evacuate(self, v: SimpleNode):
+    def get_targets(self, env:Environment, src):
+        V = env.G.get_vertices()
+        shelters = [v for v in V if (v != src  and v.is_shelter())]
+        need_evac = [v for v in V if (v != src and not v.is_shelter() and not v.evacuated)]
+        targets = need_evac if self.n_carrying == 0 else shelters
+        return targets
+
+    def try_evacuate(self, env: Environment, v: EvacuateNode):
         if self.terminated:
             return
         if v.is_shelter():
@@ -131,6 +121,7 @@ class Agent:
             self.n_carrying += v.n_people
             v.evacuated = True
             v.n_people = 0
+            env.require_evac_nodes.remove(v)
 
     def terminate(self, env: Environment):
         terminate_action = Action(
@@ -151,14 +142,21 @@ class Agent:
         self.actions_seq.append(action)
         self.time = max(self.time, action.end_time)
         if verbose:
-            print('[START]' + action.describe())
+            print('[START]' + action.description)
 
     def describe(self):
-        print('{0.name}: saved:{0.n_saved}; penalty:{0.penalty}; loc:{0.loc.label}'.format(self))
+        print("{0.name}: V={0.loc.label}; S={0.n_saved}; C={0.n_carrying}; T={0.terminated};".format(self))
 
     def summary(self):
-        return '{0.name}:S{0.n_saved};C{0.n_carrying}{0.goto_str}({0.time}){1}'.format(self,
-               '\n[T:Score={}]'.format(self.get_score()) if self.terminated else '')
+        return '{0.name}:S{0.n_saved};C{0.n_carrying}{0.goto_str}({0.time}){1}'\
+            .format(self, '\n[T:Score={}]'.format(self.get_score()) if self.terminated else '')
+
+    def get_agent_state(self):
+        return shallow_copy(self)
+
+    def update(self, other):
+        for k, v in other.__dict__.items():
+            setattr(self, k, v)
 
     def __hash__(self):
         return hash(repr(self))
@@ -170,10 +168,7 @@ class Greedy(Agent):
             return
         s = self.loc
         env.G.dijkstra(s)
-        V = env.G.get_vertices()
-        shelters  = [v for v in V if (v != s and v.is_shelter()) ]
-        need_evac = [v for v in V if (v != s and not v.is_shelter() and not v.evacuated)]
-        targets = need_evac if self.n_carrying == 0 else shelters
+        targets = self.get_targets(env, s)
         targets_by_priority = sorted(targets, key=lambda v: (v.d, v.label), reverse=True)
         if targets_by_priority:
             target = targets_by_priority.pop()
@@ -182,9 +177,9 @@ class Greedy(Agent):
         else:
             self.terminate(env)
 
-    def goto(self, env: Environment, v: SimpleNode):
+    def goto(self, env: Environment, v: EvacuateNode):
         super().goto(env, v)
-        self.try_evacuate(v)
+        self.try_evacuate(env, v)
 
 
 class Human(Agent):
@@ -212,13 +207,13 @@ class Human(Agent):
         else:
             self.terminate(env)
 
-    def goto(self, env: Environment, v: SimpleNode):
+    def goto(self, env: Environment, v: EvacuateNode):
         super().goto(env, v)
-        self.try_evacuate(v)
+        self.try_evacuate(env, v)
 
 
 class Vandal(Agent):
-    def __init__(self, name, start_loc: SimpleNode):
+    def __init__(self, name, start_loc: EvacuateNode):
         super().__init__(name, start_loc)
         self.noop_counter = 0
         self.n_blocked = 0
@@ -249,7 +244,7 @@ class Vandal(Agent):
             # block the accessible road with the lowest weight, i.e remove it from graph
             self.block2(env, e_min)
 
-    def goto(self, env: Environment, v: SimpleNode):
+    def goto(self, env: Environment, v: EvacuateNode):
         super().goto(env, v)
         self.reset_noop_counter()
 
@@ -281,7 +276,7 @@ class Vandal(Agent):
         return self.n_blocked
 
     def no_op(self, env):
-        '''agent does nothing'''
+        """agent does nothing"""
         self.register_action(env, Action(
             agent=self,
             action_type=ActionType.NO_OP,
@@ -290,48 +285,31 @@ class Vandal(Agent):
         ))
 
 
-class SearchAgent(Agent):
-    def __init__(self, name, start_loc: SimpleNode):
+class SearchAgent(Greedy):
+    def __init__(self, name, start_loc: EvacuateNode):
         super().__init__(name, start_loc)
-        self.strategy: Queue[Action] = Queue()
+        self.strategy: Stack[Action] = Stack()
 
-    def get_strategy(self, env: Environment, state: State):
-        state.apply()
-        # TODO: search tree code goes here
-        # h = self.heuristic(env, state)
-        return Queue()
+    def get_strategy(self, env: Environment):
+        if not self.strategy.is_empty():
+            return # strategy already exists
+        expand_count, self.strategy = SearchTree(env, self).tree_search()
+        debug('expand count = {}'.format(expand_count))
+        self.describe_strategy()
 
-    def act(self):
-        """dequeue the next action in strategy and execute it"""
-        if self.is_available() and not self.strategy.is_empty():
+    def describe_strategy(self):
+        print('\nStrategy for {}:'.format(self.name))
+        print('number of actions: {}'.format(len(self.strategy.stack)))
+        for action in reversed(self.strategy.stack):
+            action.describe()
+
+    def act(self, env: Environment):
+        """pop the next action in strategy and execute it"""
+        if self.strategy.is_empty():
+            self.get_strategy(env)
+        if self.is_available(env) and not self.strategy.is_empty():
             self.strategy.pop().execute()
 
-    def heuristic(self, env: Environment, state: State=None): # TODO: change to state only after implementing
-        state.apply()
-        """given a state and an agent, returns how many people cannot be saved by the agent"""
-        src = self.loc
-        env.G.dijkstra(src)
-        V = env.G.get_vertices()
-        require_evac_nodes = [v for v in V if (v != src and not v.is_shelter() and not v.evacuated)]
-        # find nodes we can reach before hurricane hits them. create (node, required_pickup_time) pairs
-        # TODO: should it be <= v.deadline? assuming positive edge weights for optimization
-        evac_candidates = [(v, env.time + v.d) for v in require_evac_nodes if env.time + v.d < v.deadline]
-        doomed_nodes = [] # nodes we cannot save from the imminent hurricane
-        for u, time_after_pickup in evac_candidates:
-            env.G.dijkstra(u)
-            shelter_candidates = [(v, time_after_pickup + v.d) for v in V
-                                  if v.is_shelter() and time_after_pickup + v.d <= v.deadline]
-            if not shelter_candidates:
-                doomed_nodes.append(u)
 
-            debug('possible routes for evacuating {}:'.format(u))
-            debug('\n'.join(['{} ~({})-> {} ~({})-> {}(Shelter)'.format(self.loc, time_after_pickup, u, total_time, shelter)
-                             for shelter, total_time in shelter_candidates]))
-
-        n_doomed = len(doomed_nodes)
-        debug('h(x) = number of doomed_nodes = ' + str(n_doomed))
-        return n_doomed
-
-
-class GreedySearch(Greedy, SearchAgent):
+class GreedySearch(SearchAgent):
     pass

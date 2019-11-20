@@ -1,20 +1,20 @@
 import re
 from random import choice as rand_choice
 from utils.data_structures import Edge, Graph
-from agents.agents import Human, Greedy, Vandal, GreedySearch
-from environment import Environment, ShelterNode, SimpleNode
+from agents.agents import Human, Greedy, Vandal, SearchAgent, GreedySearch
+from environment import Environment, ShelterNode, EvacuateNode
 from configurator import Configurator
 
 
 class Simulator:
-    '''Hurricane evacuation simulator'''
+    """Hurricane evacuation simulator"""
     def __init__(self, config_path='./config/graph.config'):
         self.G = None
         self.parse_graph(config_path)
         self.env = Environment(self.G)
 
     def parse_graph(self, path):
-        '''Parse and create graph from config file, syntax same as in assignment instructions'''
+        """Parse and create graph from config file, syntax same as in assignment instructions"""
         num_v_pattern          = re.compile("#N\s+(\d+)")
         shelter_vertex_pattern = re.compile("#(V\d+)\s+D(\d+)\s+S")
         person_vertex_pattern  = re.compile("#(V\d+)\s+D(\d+)\s+P(\d+)")
@@ -45,7 +45,7 @@ class Simulator:
                 match = person_vertex_pattern.match(line)
                 if match:
                     name, deadline, n_people = match.groups()
-                    new_node = SimpleNode(name, int(deadline), int(n_people))
+                    new_node = EvacuateNode(name, int(deadline), int(n_people))
                     person_nodes.append(new_node)
                     name_2_node[new_node.label] = new_node
 
@@ -72,7 +72,6 @@ class Simulator:
     def run_simulation(self, agents, agent_records=[]):
         self.init_agents(agents)
         self.env.add_agent_actions(agent_records)
-        self.env.compute_search_agents_strategy()
         for tick in range(self.env.max_ticks):
             print('\nT={}'.format(tick))
             for agent in self.env.agents:
@@ -88,9 +87,10 @@ if __name__ == '__main__':
     Configurator.get_user_config()
     # part I
     sim = Simulator()
-    sim.run_simulation([Human, Greedy, Vandal])
-
+    # sim.run_simulation([Greedy])
+    # sim.run_simulation([Human, Greedy, Vandal])
     # part II + Bonus
+    sim.run_simulation([SearchAgent])
     # sim2.run_simulation([GreedySearch], agent_records)
     # sim2 = Simulator()
     # sim2.run_simulation([GreedySearch])

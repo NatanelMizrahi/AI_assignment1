@@ -4,10 +4,11 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from heapq import _siftdown
 from typing import List, Dict, Tuple
+from configurator import Configurator
 
 
 class Pair:
-    def __init__(self,k,v):
+    def __init__(self, k, v):
         self.k = k
         self.v = v
 
@@ -25,40 +26,40 @@ class Pair:
 
 
 class Heap:
-    def __init__(self, elements: List[Pair]=[]):
+    def __init__(self, elements: List=[]):
         heapq.heapify(elements)
         self.heap = elements
-        self.set = set([e.v for e in elements])
+        self.set = set(elements)
 
     def insert(self, element):
         heapq.heappush(self.heap, element)
-        self.set.add(element.v)
+        self.set.add(element)
 
     def insert_many(self, elements):
         for element in elements:
             self.insert(element)
 
     def extract_min(self):
-        min = heapq.heappop(self.heap)
-        self.set.remove(min.v)
-        return min
+        min_item = heapq.heappop(self.heap)
+        self.set.remove(min_item)
+        return min_item
 
     def is_empty(self):
         return len(self.heap) == 0
 
-    def is_min_heap(arr):
-        return all(arr[i] >= arr[(i - 1) // 2] for i in range(1, len(arr)))
+    def is_min_heap(self):
+        return all(self.heap[i] >= self.heap[(i - 1) // 2] for i in range(1, len(self.heap)))
 
     def siftdown(self, pos):
         _siftdown(self.heap, 0, pos)
 
-    def decrease_key(self, old, new):
-        i = self.heap.index(old)
-        self.heap[i] = new
-        _siftdown(self.heap, 0, i)
+    def decrease_key(self, item):
+        idx = self.heap.index(item)
+        _siftdown(self.heap, 0, idx)
 
     def __str__(self):
         return str([str(e) for e in self.set])
+
 
 class Stack:
     def __init__(self):
@@ -84,8 +85,9 @@ class Queue(Stack):
 
 ## GRAPH ##
 class Node:
-    '''A base Node class for nodes used in the Graph class'''
-    def __init__(self,label):
+    """A base Node class for nodes used in the Graph class"""
+
+    def __init__(self, label):
         self.label = label
         # disjkstra algorithm aux variables:
         self.d = 0
@@ -97,8 +99,14 @@ class Node:
     def __eq__(self, other):
         return str(self) == str(other)
 
+    def __lt__(self, other):
+        return self.d < other.d
+
     def __hash__(self):
         return hash(self.label)
+
+    def __repr__(self):
+        return self.label
 
     def describe(self):
         return self.label
@@ -108,12 +116,13 @@ class Node:
 
 
 class Edge:
-    def __init__(self, v1: Node, v2:Node, w=0, name=''):
+    def __init__(self, v1: Node, v2: Node, w=0, name=''):
         self.name = name
         self.v1 = v1
         self.v2 = v2
         self.w = w
         self.blocked = False
+        self.deadline = 0
 
     def get(self):
         return (self.v1, self.v2, self.w)
@@ -121,8 +130,8 @@ class Edge:
     def reverse(self):
         return Edge(self.v2, self.v1, self.w, self.name + '_')
 
-    def is_blocked(self):
-        return self.blocked
+    def is_blocked(self, time=0):
+        return self.blocked or time > self.deadline
 
     def __eq__(self, other):
         return self.v1 == other.v1 and self.v2 == other.v2
@@ -136,15 +145,16 @@ class Edge:
 
 class Graph:
     """Graph with blockable edges"""
-    def __init__(self, V: List[Node]=[],E: List[Edge]=[]):
-        self.pos = None # to maintain vertex position in visualization
+
+    def __init__(self, V: List[Node] = [], E: List[Edge] = []):
+        self.pos = None  # to maintain vertex position in visualization
         self.n_vertices = 0
-        self.V:   Dict[Node, List[Node]]     = {}
-        self.Adj: Dict[Tuple[Node,Node],Edge]= {}
+        self.V: Dict[Node, List[Node]] = {}
+        self.Adj: Dict[Tuple[Node, Node], Edge] = {}
         self.init(V, E)
 
-    def init(self, V:List[Node], E:List[Edge]):
-        '''initialize graph with list of nodes and a list of edges'''
+    def init(self, V: List[Node], E: List[Edge]):
+        """initialize graph with list of nodes and a list of edges"""
         for v in V: self.add_vertex(v)
         for e in E: self.add_edge(e)
 
@@ -158,24 +168,24 @@ class Graph:
         v1 = e.v1
         v2 = e.v2
         if (not v1 in self.V) or (not v2 in self.V):
-            raise Exception("{} or {} are not in V".format(v1,v2))
-        if self.Adj.get((v1,v2)):
-            raise Exception("({},{}) already exists in E".format(v1,v2))
+            raise Exception("{} or {} are not in V".format(v1, v2))
+        if self.Adj.get((v1, v2)):
+            raise Exception("({},{}) already exists in E".format(v1, v2))
         self.V[v1].add(v2)
         self.V[v2].add(v1)
-        self.Adj[v1,v2] = e
-        self.Adj[v2,v1] = e.reverse()
+        self.Adj[v1, v2] = e
+        self.Adj[v2, v1] = e.reverse()
 
     def remove_edge(self, v1, v2):
         print('someone removed an edge')
         if (not v1 in self.V) or (not v2 in self.V):
-            raise Exception("{} or {} are not in V".format(v1,v2))
-        if not self.Adj.get((v1,v2)):
-            print("({},{}) not in E".format(v1,v2))
-        self.V[v1].remove(v2) # adjacency list is a set
+            raise Exception("{} or {} are not in V".format(v1, v2))
+        if not self.Adj.get((v1, v2)):
+            print("({},{}) not in E".format(v1, v2))
+        self.V[v1].remove(v2)  # adjacency list is a set
         self.V[v2].remove(v1)
-        del self.Adj[v1,v2]
-        del self.Adj[v2,v1]
+        del self.Adj[v1, v2]
+        del self.Adj[v2, v1]
 
     def block_edge(self, v1, v2):
         if (not v1 in self.V) or (not v2 in self.V):
@@ -189,11 +199,11 @@ class Graph:
         if (not v in self.V):
             raise Exception("{} not in V".format(v))
         for u in self.V[v]:
-            self.remove_edge(v,u)
+            self.remove_edge(v, u)
         self.n_vertices -= 1
 
     def neighbours(self, v):
-            return [u for u in self.V[v] if not self.get_edge(u, v).is_blocked()]
+        return [u for u in self.V[v] if not self.get_edge(u, v).is_blocked()]
 
     def get_vertices(self):
         return self.V.keys()
@@ -209,6 +219,8 @@ class Graph:
             print(u, ': ' + ','.join([str(v) for v in ns]))
 
     def display(self, graph_id=0, output_path='.', save_img=False):
+        if not Configurator.interactive:
+            return
         filename = '{0}/graph_{1}.png'.format(output_path, graph_id)
         V = self.get_vertices()
         G = nx.Graph()
@@ -257,27 +269,40 @@ class Graph:
             print(v.label + ': ' + '->'.join([v.label for v in self.get_shortest_path(src, v)]))
 
     def dijkstra(self, s, debug=False):
-        '''
+        """
         :param s: source vertex
         :return: at the end of this method, foreach v in V: v.d = dist from source and v.prev = previous in shortest path to source
-        '''
+        """
         inf = float('inf')
         V = self.get_vertices()
         for v in V:
             v.d = inf
             v.prev = None
         s.d = 0
-        Q = Heap([Pair(v.d, v) for v in V])
+        Q = Heap(list(V))
         while not Q.is_empty():
-            pair = Q.extract_min()
-            u = pair.v
+            u = Q.extract_min()
             if debug: self.display(str(Q) + '; u = ' + u.label)
             for v in self.neighbours(u):
                 if v in Q.set:
                     if debug: self.display(str(Q) + '; u = ' + u.label + ', v = ' + v.label)
-                    val = u.d + self.Adj[u,v].w # w(u,v)
+                    val = u.d + self.Adj[u, v].w  # w(u,v)
                     if val < v.d:
-                        Q.decrease_key(Pair(v.d, v), Pair(val, v))
                         v.d = val
                         v.prev = u
-        #TODO: return dist, prev for each node
+                        Q.decrease_key(v)
+
+
+class HurricaneGraph(Graph):
+    def __init__(self, V: List[Node]=[], E: List[Edge]=[], time=0):
+        super().__init__(V, E)
+        self.time = time
+
+    def is_blocked(self,u, v):
+        return self.get_edge(u, v).is_blocked()
+
+    def defies_deadline(self, tgt):
+        return self.time + tgt.d > tgt.deadline
+
+    def neighbours(self, v):
+        return [u for u in self.V[v] if not self.is_blocked(u,v) and not self.time + v.d > v.deadline]

@@ -11,6 +11,7 @@ class Configurator:
         parser.add_argument('-V', '--v_no_ops',      default='1',   type=int,           help='number of vandal agent\'s no-ops before taking action')
         parser.add_argument('-K', '--base_penalty',  default='2',   type=int,           help='base penalty for losing an evacuation vehicle')
         parser.add_argument('-d', '--debug',         default=True,  action='store_true',help='run in debug mode')
+        parser.add_argument('-i', '--interactive',   default=True,  action='store_true',help='run interactively (with graph displays)')
         args = vars(parser.parse_args())
         for k, v in args.items():
             setattr(Configurator, k, v)
