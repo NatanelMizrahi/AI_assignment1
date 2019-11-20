@@ -26,7 +26,7 @@ class EvacuateNode(Node):
         return False
 
     def summary(self):
-        return '{}:(D{}|P{}/{})'\
+        return '{}\n(D{}|P{}/{})'\
                 .format(self.label, self.deadline, self.n_people, self.n_people_initial) + Node.summary(self)
 
     def describe(self):
@@ -39,7 +39,7 @@ class ShelterNode(EvacuateNode):
         return True
 
     def summary(self):
-        return '{}:(D{})'.format(self.label, self.deadline) + Node.summary(self)
+        return '{}\n(D{})'.format(self.label, self.deadline) + Node.summary(self)
 
     def describe(self):
         return 'Shelter\n' + super().describe()
@@ -151,6 +151,7 @@ class Plan:
     def __lt__(self, other):
         """cost comparator. Tie-breaker prefers non-goal states to provide a chance to get better results"""
         return (self.cost, self.state.is_goal()) < (other.cost, other.state.is_goal())
+        # return (self.cost, not self.state.is_goal()) < (other.cost, not other.state.is_goal())
 
     def summary(self):
         term = 'T' if self.state.agent_state.terminated else ''
@@ -230,23 +231,27 @@ class SearchTree:
             if self.env.time + v.d > v.deadline:
                 doomed_nodes.append(v) # nodes we cannot save from the imminent hurricane
             else:
-                evac_candidates.append((v, self.env.time + v.d))
-        for u, time_after_pickup in evac_candidates:
+                evac_candidates.append((v, self.env.time + v.d, list(self.env.G.get_shortest_path(src, v))))
+        for u, time_after_pickup, pickup_shortest_path in evac_candidates:
             self.env.G.dijkstra(u) # calculate minimum distance from node after pickup
-            shelter_candidates = [(v, time_after_pickup + v.d) for v in V
+            shelter_candidates = [(v, time_after_pickup + v.d, list(self.env.G.get_shortest_path(u, v))) for v in V
                                   if v.is_shelter() and time_after_pickup + v.d <= v.deadline]
             if not shelter_candidates:
                 doomed_nodes.append(u)
-            debug('possible routes for evacuating {}:'.format(u))
-            for shelter, total_time in shelter_candidates:
-                debug('(T{}){} ~~> (T{}){} ~~> (T{}){}(Shelter:D{})'
-                      .format(self.env.time, agent.loc, time_after_pickup, u, total_time, shelter, shelter.deadline))
+            debug('\npossible routes for evacuating {}:'.format(u))
+            for shelter, total_time, dropoff_shortest_path in shelter_candidates:
+                debug('pickup:(T{}){}(T{}) | drop-off:{}(T{}): Shelter(D{})'.format(self.env.time,
+                                                                                    pickup_shortest_path,
+                                                                                    time_after_pickup,
+                                                                                    dropoff_shortest_path,
+                                                                                    total_time,
+                                                                                    shelter.deadline))
         n_doomed_people = sum([v.n_people for v in doomed_nodes])
         debug('h(x) = {} [= # of doomed people (doomed_nodes = {})]'.format(n_doomed_people, doomed_nodes))
         return n_doomed_people
 
     def total_cost(self, state):
-        # state updated before calling this function
+        # assumes environment's state was updated before calling this function
         h = 0 if state.is_goal() else self.heuristic(state)
         g = state.agent.penalty
         print('cost = g + h = {} + {} = {}'.format(g, h, g+h))
@@ -283,7 +288,7 @@ class SearchTree:
                 agent.terminate(self.env)
             action = Action(
                 agent=agent,
-                description='*"TERMINATE" action for {}'.format(agent.name),
+                description='*[T={:>3}] "TERMINATE" action for {}'.format(agent.time, agent.name),
                 callback=terminate_agent)
             agent.local_terminate()
         else:
@@ -291,7 +296,7 @@ class SearchTree:
                 agent.goto2(self.env, dest)
             action = Action(
                 agent=agent,
-                description='*"GOTO {}->{}" action for {}'.format(agent.loc, dest, agent.name),
+                description='*[T={:>3}] "GOTO {}->{}" action for {}'.format(agent.time, agent.loc, dest, agent.name),
                 callback=move_agent)
             agent.local_goto(self.env, dest)
         action.describe()

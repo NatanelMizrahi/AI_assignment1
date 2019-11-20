@@ -195,6 +195,9 @@ class Graph:
         self.Adj[v1, v2].blocked = True
         self.Adj[v2, v1].blocked = True
 
+    def is_blocked(self, u, v):
+        return self.get_edge(u, v).is_blocked()
+
     def remove_vertex(self, v):
         if (not v in self.V):
             raise Exception("{} not in V".format(v))

@@ -65,7 +65,9 @@ class Agent:
         self.register_goto_callback(env, v)
 
     def goto(self, env: Environment, v: EvacuateNode):
-        if not self.is_reachable(env, v, verbose=True):
+        e = env.G.get_edge(self.loc, v)
+        if e.is_blocked():
+            print('edge ({},{}) is blocked. Cannot complete move. Terminating.'.format(e.v1, e.v2))
             self.terminate(env)
             return
         self.loc.agents.remove(self)
