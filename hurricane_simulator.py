@@ -1,7 +1,7 @@
 import re
 from random import choice as rand_choice
 from utils.data_structures import Edge, Graph
-from agents.agents import Human, Greedy, Vandal, SearchAgent, GreedySearch
+from agents.agents import Human, Greedy, Vandal, AStar, RTAStar,GreedySearch
 from environment import Environment, ShelterNode, EvacuateNode
 from configurator import Configurator
 
@@ -65,7 +65,7 @@ class Simulator:
         shelters = [v for v in self.G.get_vertices() if v.is_shelter()]
         for agent_class in agents:
             start_vertex = rand_choice(shelters)
-            new_agent = agent_class((agent_class.__name__ + 'Agent')[:12], start_vertex)
+            new_agent = agent_class('{}Agent'.format(agent_class.__name__), start_vertex)
             self.env.agents.append(new_agent)
             start_vertex.agents.add(new_agent)
 
@@ -87,12 +87,14 @@ if __name__ == '__main__':
     Configurator.get_user_config()
 
     # part I
-    sim = Simulator()
+    # sim = Simulator()
     # sim.run_simulation([Greedy])
     # sim.run_simulation([Human, Greedy, Vandal])
 
     # part II
-    sim.run_simulation([SearchAgent])
+    for search_agent_type in [RTAStar]:
+        search_agent_sim = Simulator()
+        search_agent_sim.run_simulation([search_agent_type])
 
     # Bonus
     # sim2.run_simulation([GreedySearch], agent_records)

@@ -192,7 +192,7 @@ class SearchTree:
         # self.display()
         return strategy
 
-    def tree_search(self, max_expand=1000000):
+    def tree_search(self, max_expand=float('inf')):
         """initialize state tree using the initial state of problem"""
         expand_count = 0
         while True:
@@ -210,12 +210,14 @@ class SearchTree:
                 print("goal reached:")
                 option.state.describe()
                 return expand_count, self.backtrack(option)
-            if expand_count < max_expand:
+            elif expand_count < max_expand:
                 # otherwise, expand the node
                 self.expand_node(option)
                 expand_count += 1
             else:
-                return option
+                print('Maximum number of expansions reached. Returning best strategy so far')
+                return expand_count, self.backtrack(option)
+
 
     def heuristic(self, state: State=None):
         """given a state for an agent, returns how many people cannot be saved by the agent"""

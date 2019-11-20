@@ -234,10 +234,10 @@ class Graph:
         if G.number_of_nodes() == 0:
             return
         if self.pos is None:
-            self.pos = nx.spring_layout(G)
+            self.pos = nx.spring_layout(G, scale=25)
         nx.draw(G, self.pos, node_size=1700, with_labels=False)
         nx.draw_networkx_edge_labels(G, self.pos, edge_labels=edge_labels, rotate=False)
-        nx.draw_networkx_labels(G, self.pos, node_labels, font_size=9, font_weight='bold')
+        nx.draw_networkx_labels(G, self.pos, node_labels, font_size=7.5, font_weight='bold')
         plt.margins(0.2)
         plt.legend([], title=graph_id, loc='upper center')
         plt.show()

@@ -150,7 +150,7 @@ class Agent:
         print("{0.name}: V={0.loc.label}; S={0.n_saved}; C={0.n_carrying}; T={0.terminated};".format(self))
 
     def summary(self):
-        return '{0.name}:S{0.n_saved};C{0.n_carrying}{0.goto_str}({0.time}){1}'\
+        return '{0.name}:S{0.n_saved};C{0.n_carrying}{0.goto_str}({0.time}){1}' \
             .format(self, '\n[T:Score={}]'.format(self.get_score()) if self.terminated else '')
 
     def get_agent_state(self):
@@ -287,15 +287,16 @@ class Vandal(Agent):
         ))
 
 
-class SearchAgent(Greedy):
-    def __init__(self, name, start_loc: EvacuateNode):
+class SearchAgent(Human):
+    def __init__(self, name, start_loc: EvacuateNode, max_expand=float('inf')):
         super().__init__(name, start_loc)
         self.strategy: Stack[Action] = Stack()
+        self.max_expand = max_expand
 
     def get_strategy(self, env: Environment):
         if not self.strategy.is_empty():
             return # strategy already exists
-        expand_count, self.strategy = SearchTree(env, self).tree_search()
+        expand_count, self.strategy = SearchTree(env, self).tree_search(max_expand=self.max_expand)
         debug('expand count = {}'.format(expand_count))
         self.describe_strategy()
 
@@ -314,4 +315,15 @@ class SearchAgent(Greedy):
 
 
 class GreedySearch(SearchAgent):
-    pass
+    def __init__(self, name, start_loc: EvacuateNode):
+        super().__init__(name, start_loc, max_expand=1)
+
+
+class AStar(SearchAgent):
+    def __init__(self, name, start_loc: EvacuateNode):
+        super().__init__(name, start_loc, max_expand=float('inf'))
+
+
+class RTAStar(SearchAgent):
+    def __init__(self, name, start_loc: EvacuateNode, max_expand=5):
+        super().__init__(name, start_loc,max_expand=max_expand)
