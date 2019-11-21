@@ -1,9 +1,8 @@
 from utils.data_structures import Node, Edge, Graph, Heap, Stack
+from typing import List, Set, TypeVar, Union
 from copy import copy as shallow_copy
-from typing import Dict, Set, TypeVar, Union
 from action import Action, ActionType
 from configurator import Configurator
-
 AgentType = TypeVar('Agent')
 
 
@@ -20,14 +19,14 @@ class EvacuateNode(Node):
         self.n_people = n_people
         self.n_people_initial = self.n_people
         self.evacuated = False
-        self.agents = set([])
+        self.agents: Set[AgentType] = set([])
 
     def is_shelter(self):
         return False
 
     def summary(self):
-        return '{}\n(D{}|P{}/{})'\
-                .format(self.label, self.deadline, self.n_people, self.n_people_initial) + Node.summary(self)
+        return '{}\n(D{}|P{}/{})'.format(self.label, self.deadline, self.n_people, self.n_people_initial)\
+               + Node.summary(self)
 
     def describe(self):
         return self.summary() + '\n' + '\n'.join([agent.summary() for agent in self.agents])
@@ -68,7 +67,7 @@ class State:
 class Environment:
     def __init__(self, G,
                  time=0,
-                 agents=[],
+                 agents: List[AgentType]=[],
                  blocked_edges: Set[Edge] = set([])):
         self.G: Graph = G
         self.time = time
@@ -89,7 +88,7 @@ class Environment:
         return max([v.deadline for v in self.G.get_vertices()]) + 1
 
     def init_required_evac_nodes(self):
-        return set([v for v in self.G.get_vertices() if (not v.is_shelter() and not v.evacuated)])
+        return set([v for v in self.G.get_vertices() if (not v.is_shelter() and v.n_people > 0)])
 
     def get_blocked_edges(self):
         return shallow_copy(self.blocked_edges)
@@ -141,7 +140,7 @@ class Environment:
 class Plan:
     def __init__(self, cost,
                  state: State,
-                 action: Action=None,
+                 action: Action,
                  parent=None):
         self.cost = cost
         self.state = state
@@ -171,9 +170,10 @@ class SearchTree:
         return self.env.get_state(self.agent)
 
     def get_root_node(self):
+        """creates a root node for the search tree representing the initial state"""
         return Plan(
             cost=0,
-            action=Action(agent=self.agent, description='Root of the tree'),
+            action=None,
             parent=None,
             state=self.get_initial_state())
 
@@ -218,7 +218,6 @@ class SearchTree:
                 print('Maximum number of expansions reached. Returning best strategy so far')
                 return expand_count, self.backtrack(option)
 
-
     def heuristic(self, state: State=None):
         """given a state for an agent, returns how many people cannot be saved by the agent"""
         self.env.apply_state(state)
@@ -226,7 +225,7 @@ class SearchTree:
         src = agent.loc
         self.env.G.dijkstra(src)
         V = self.env.G.get_vertices()
-        require_evac_nodes = [v for v in self.env.require_evac_nodes if v != src]
+        require_evac_nodes = list(self.env.require_evac_nodes)
         # find nodes that can be reached before hurricane hits them. create (node, required_pickup_time) pairs
         evac_candidates, doomed_nodes = [], []
         for v in require_evac_nodes:

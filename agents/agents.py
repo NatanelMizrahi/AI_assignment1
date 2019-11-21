@@ -12,7 +12,7 @@ def debug(s):
 class Agent:
     def __init__(self, name, start_loc: EvacuateNode):
         self.loc: EvacuateNode = start_loc
-        self.actions_seq = []
+        self.actions_seq: List[Action] = []
         self.name = name
         self.n_saved = 0
         self.penalty = 0
@@ -150,8 +150,8 @@ class Agent:
         print("{0.name}: V={0.loc.label}; S={0.n_saved}; C={0.n_carrying}; T={0.terminated};".format(self))
 
     def summary(self):
-        return '{0.name}:S{0.n_saved};C{0.n_carrying}{0.goto_str}({0.time}){1}' \
-            .format(self, '\n[T:Score={}]'.format(self.get_score()) if self.terminated else '')
+        terminate_string = '\n[T:Score={}]'.format(self.get_score()) if self.terminated else ''
+        return '{0.name}:S{0.n_saved};C{0.n_carrying}{0.goto_str}(T{0.time})'.format(self) + terminate_string
 
     def get_agent_state(self):
         return shallow_copy(self)
@@ -295,7 +295,7 @@ class SearchAgent(Human):
 
     def get_strategy(self, env: Environment):
         if not self.strategy.is_empty():
-            return # strategy already exists
+            return  # strategy already exists
         expand_count, self.strategy = SearchTree(env, self).tree_search(max_expand=self.max_expand)
         debug('expand count = {}'.format(expand_count))
         self.describe_strategy()

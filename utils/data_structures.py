@@ -147,7 +147,7 @@ class Graph:
     """Graph with blockable edges"""
 
     def __init__(self, V: List[Node] = [], E: List[Edge] = []):
-        self.pos = None  # to maintain vertex position in visualization
+        self.pos = None  # used to maintain vertices position in visualization
         self.n_vertices = 0
         self.V: Dict[Node, List[Node]] = {}
         self.Adj: Dict[Tuple[Node, Node], Edge] = {}

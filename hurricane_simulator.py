@@ -8,10 +8,11 @@ from configurator import Configurator
 
 class Simulator:
     """Hurricane evacuation simulator"""
+
     def __init__(self, config_path='./config/graph.config'):
-        self.G = None
-        self.parse_graph(config_path)
+        self.G: Graph = self.parse_graph(config_path)
         self.env = Environment(self.G)
+        print(self.env)
 
     def parse_graph(self, path):
         """Parse and create graph from config file, syntax same as in assignment instructions"""
@@ -55,11 +56,10 @@ class Simulator:
                     v1 = name_2_node['V'+v1_name]
                     v2 = name_2_node['V'+v2_name]
                     E.append(Edge(v1, v2, int(weight), name))
-
         V = person_nodes + shelter_nodes
-        self.G = Graph(V, E)
-        if n_vertices != self.G.n_vertices:
+        if n_vertices != len(V):
             raise Exception("Error: |V| != N")
+        return Graph(V, E)
 
     def init_agents(self, agents):
         shelters = [v for v in self.G.get_vertices() if v.is_shelter()]
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # sim.run_simulation([Human, Greedy, Vandal])
 
     # part II
-    for search_agent_type in [RTAStar]:
+    for search_agent_type in [AStar]: #GreedySearch, RTAStar,
         search_agent_sim = Simulator()
         search_agent_sim.run_simulation([search_agent_type])
 
