@@ -17,6 +17,8 @@ class SearchAgent(Human):
     def get_strategy(self, env: Environment):
         if not self.strategy.is_empty():
             return  # strategy already exists
+        # performance measure - account for tree expansion time constant T
+        self.time += self.max_expand * Configurator.T
         expand_count, self.strategy = SearchTree(env, self).tree_search(max_expand=self.max_expand)
         debug('expand count = {}'.format(expand_count))
         self.describe_strategy()

@@ -82,7 +82,6 @@ class Agent:
         self.penalty = self.n_carrying + Configurator.base_penalty
         self.terminated = True
 
-    ## callback implementation
     def register_goto_callback(self, env: Environment, v):
         if not self.is_reachable(env, v, verbose=True):
             self.terminate(env)
@@ -148,7 +147,7 @@ class Agent:
 
     def summary(self):
         terminate_string = '[${}]'.format(self.get_score()) if self.terminated else ''
-        return '{0.name}|{0.loc}|S{0.n_saved}|C{0.n_carrying}{0.goto_str}|T{0.time}'.format(self) + terminate_string
+        return '{0.name}|{0.loc}|S{0.n_saved}|C{0.n_carrying}{0.goto_str}|T{0.time:.2f}'.format(self) + terminate_string
 
     def describe(self):
         print(self.summary())

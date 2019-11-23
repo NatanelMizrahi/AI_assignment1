@@ -16,7 +16,7 @@ class Configurator:
         parser.add_argument('-V', '--v_no_ops',      default='1',       type=int,            help='number of vandal agent\'s no-ops before taking action')
         parser.add_argument('-K', '--base_penalty',  default='2',       type=int,            help='base penalty for losing an evacuation vehicle')
         parser.add_argument('-L', '--limit',         default='5',       type=int,            help='Real-time A* agent expansions limit')
-        parser.add_argument('-T',                    default='0',       type=int,            help='search tree expansions time unit')
+        parser.add_argument('-T',                    default='0',       type=float,          help='search tree expansions time unit')
         parser.add_argument('-a', '--agents',        default=['AStar'], nargs='+',           help='active agent types')
         # debug command line arguments
         parser.add_argument('-d', '--debug',         default=True,      action='store_true', help='run in debug mode')
