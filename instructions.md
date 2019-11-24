@@ -42,7 +42,7 @@ At this stage, you should run the environment with three agents participating in
 
 Clarification and rationale: Note that this part of the assignment will not really be checked, as it contains no AI, so details are not important. The goal of this part of the assignment is constructing infrastructure for the rest of the assignment(s). E.g. the "human agent" is intended as a debugging and demo aid, and also towards assignment 2, and the greedy agent contains code for shortest path that would be a component in a heuristic in the 2nd part of this assignment.
 
-##Implementation part II: search agents
+## Implementation part II: search agents
 Now, after chapter 4, you will be implementing intelligent agents (this is part 2 of the assignment) that need to act in this environment. Each agent should assume that it is acting alone, regardless of whether it is true. You will be implementing a "search" agent as defined below. All the algorithms will use a heuristic evaluation function of your choice.
 
 A greedy search agent, that picks the move with best immediate heuristic value to expand next.
