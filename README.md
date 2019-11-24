@@ -2,6 +2,7 @@
 Hurricane evacuation simulator with AI search agents.
 The first assignment in Intro to Aritificial Intelligence.
 ## Instructions:
+```
 usage: test.py [-h] [-g GRAPH_PATH] [-V V_NO_OPS] [-K BASE_PENALTY] [-L LIMIT]
                [-T T] [-a AGENTS [AGENTS ...]] [-d] [-i] [-s]
 
@@ -23,6 +24,7 @@ optional arguments:
   -d, --debug           run in debug mode
   -i, --interactive     run interactively (with graph displays)
   -s, --view_strategy   plot search agents strategy trees
-  
-example: 
-python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a RTAStar Vandal -T 0.01 -L 7
+```  
+### Example: 
+`python3 test.py -V 1 -K 5 -g tests/23-11__18-08-25.config -a RTAStar Vandal -T 0.01 -L 7`
+
