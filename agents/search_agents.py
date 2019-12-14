@@ -44,14 +44,19 @@ class GreedySearch(SearchAgent):
         super().__init__(name, start_loc, max_expand=1)
 
 
-class RTAStar(SearchAgent):
-    """A search agent that expands a limited number of nodes at a time in a search tree when devising a strategy"""
-    def __init__(self, name, start_loc: EvacuateNode):
-        super().__init__(name, start_loc, max_expand=Configurator.limit)
-
-
 class AStar(SearchAgent):
     """A search agent with an unlimited amount of expansions in a search tree when devising a strategy"""
     def __init__(self, name, start_loc: EvacuateNode):
         super().__init__(name, start_loc, max_expand=100000)
 
+
+class RTAStar(SearchAgent):
+    """A search agent that expands a limited number of nodes at a time in a search tree when devising a strategy"""
+    def __init__(self, name, start_loc: EvacuateNode):
+        super().__init__(name, start_loc, max_expand=Configurator.limit)
+
+    def act(self, env: Environment):
+        """RTA* does only one move at a time and then recalculates from scratch"""
+        super().act(env)
+        while not self.strategy.is_empty():
+            self.strategy.pop()
