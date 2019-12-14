@@ -1,5 +1,5 @@
-#Introduction to Artificial Intelligence
-##Assignment 1
+# Introduction to Artificial Intelligence
+## Assignment 1
 Environment simulator and agents for the Hurricane Evacuation Problem
 In this first exercise you are asked to implement an environment simulator that runs a path optimization problem in the presence of dealines. Then, you will implement some agents that live in the environment and evaluate their performance.
 
@@ -12,7 +12,7 @@ An agent can only do terminate or traverse actions. The time for traverse action
 
 The simulator should keep track of time, the number of actions done by each agent, and the total number of people successfully evacuated.
 
-##Implementation part I: simulator + simple agents
+## Implementation part I: simulator + simple agents
 Initially you will implement the environment simulator, and several simple (non-AI) agents. The environment simulator should start up by reading the graph from a file, as well as the contents of vertices and global constants, in a format of your choice. We suggest using a simple adjancency list in an ASCII file, that initially specifies the number of vertices. For example (comments beginning with a semicolon):
 
 \#N 4      ; number of vertices n in graph (from 1 to n)
@@ -42,7 +42,7 @@ At this stage, you should run the environment with three agents participating in
 
 Clarification and rationale: Note that this part of the assignment will not really be checked, as it contains no AI, so details are not important. The goal of this part of the assignment is constructing infrastructure for the rest of the assignment(s). E.g. the "human agent" is intended as a debugging and demo aid, and also towards assignment 2, and the greedy agent contains code for shortest path that would be a component in a heuristic in the 2nd part of this assignment.
 
-##Implementation part II: search agents
+## Implementation part II: search agents
 Now, after chapter 4, you will be implementing intelligent agents (this is part 2 of the assignment) that need to act in this environment. Each agent should assume that it is acting alone, regardless of whether it is true. You will be implementing a "search" agent as defined below. All the algorithms will use a heuristic evaluation function of your choice.
 
 A greedy search agent, that picks the move with best immediate heuristic value to expand next.
@@ -58,7 +58,7 @@ Bonus version: construct a search agent as above, but in addition allow one vand
 
 Addtional bonus - theoretical: What is the computational complexity of the Hurricane Evacuation Problem (single agent)? Can you prove that it is NP-hard? Or is it in P? If the latter, can you design an algorithm that solves the problem in polynomial time?
 
-##Deliverables
+## Deliverables
 The program and code sent to the grader, by e-mail or otherwise as specified by the grader, a printout of the code and results. A document stating the heuristic function you used and the rationale for selecting this function. Set up a time for frontal grading checking of the delivered assignment, in which both members of each team must demonstrate at least some familiarity with their program...
 
 Due date for part 1 (recommended, not checked or enforced): Monday, November 4, 2019.
